@@ -1,16 +1,56 @@
 #include<stdio.h>
 #include<stdbool.h>
+#include<string.h>
+ 
+unsigned char prog[1000]=" \n   \t  \n($first\n  \t \n  \n\t ($first 0xA \n W0<-W1 \n BL $next\n BL $next\n BL $next\n BL $next \nX0<-X25 #0x5\n\n :abc\n :efg \n \nB :abc \n B :abc \n mem X5 #0x70<-X6 \n)\n($firstx 0xA\n BL $next \n)\n($next 0X4 \n X28 <- mem X20 #-0X8 \n RETURN \n:name\n B :name\n BL $first \nX6 <- mem FP #0x10 \n)\n)\n\0";
+int i=0;//to iterate throughout the given input program
+int line=1;// to know the line no
+int prtflg=0;// to know what to print in the output 
 
-unsigned char prog[1000]=" \n   \t  \n($first\n  \t \n  \n\t ($first 0xA \n W0<-W2\n X0<-#0x5 \n mem X5 #0x70<-X6  \n)\n($next 0X4 \n X28 <- mem X20 #-0X8 \n RET \n:name\n W0<-W5+W4\nB :name\n W0 <-W1\nBL \t $first \nX6 <- mem FP #0x10 \n)\n)\n\0";
-int i=0;
-int line=1;
+char mainsbr[31];  // to sbr from which the execution of program starts 
+char temp[31]; //to store the string temporarily
+
+
+struct sbr_data // structure for storing sbr data.  At any index of its instance we will get all the data under the sbr defination :sbrname,lables(called and declared)
+{
+    char sdeclared[31];
+    char ldeclared [50][31];
+    int ld;
+    char lcalled [50][31];
+    int lc;          
+}sbrs[50];
+int sd = 0; // iterator for sbr_data
+
+char scalled[50][31];//for storing the called sbr
+int sc = 0;// iterator for scalled 
+
+
+bool  flag= false; //if the branch is declared it will be 1 otherwise 0
+
+
+bool validate_firstline();//returns ture if first line is correct 
+bool validate_program();//return true if program is correct
+bool validate_sbrfirstline(); // returns true if first line of sbr is correct 
+bool validate_sbr();// returns true if sbr is correct
+bool validate_instruction();//returns true if instruction is correct
+bool check_memoryinstruction();//checks insturctions which starts from memory
+bool check_R32instruction();//checks insturctions which starts from R32
+bool check_R64instruction();//checks insturctions which starts from R64
+bool sbrdec_is_present ( struct sbr_data arr[], char str[],int itr);//checks if sbr name is similar or not and adds sbr name in sturcture accordingly
+void sbrcal_is_present(char string[][31],char str[],int *itr);//checks if sbr name is similar or not and adds sbr name in sturcture accordingly
+bool lbldec_is_present (struct sbr_data arr[],char str[]);//checks if lable name is similar or not and adds sbr name in sturcture accordingly
+void lblcal_is_present (struct sbr_data arr[],char str[]);//checks if lable name is similar or not and adds sbr name in sturcture accordingly
+bool check_calledlbl(struct sbr_data arr[]);//checks wheather the called called lable is present within corresponding sbr or not
+bool check_calledsbr(struct sbr_data arr[],char calsbr[][31]);//checks wheather the called sbr is present in the program or not 
+bool check_mainsbr ( struct sbr_data arr[] , char str[],int itr);//checks if main_sbr name is present in the declared function
 
 
   enum wordis {R32,R64,mem,lable,imm,number,immd8,arrow,oparrow,arth,nextline,open,close,name,sbrbranch,lablebranch,null,FP,RETURN,error}; //the words in the program can be of these types only
  
- 
-  enum  wordis wordtype()//to check the type of nextword
+
+  enum  wordis wordtype()
   {
+    int a=0; // for storing the char at its appropriate position in the string
     switch (prog[i])
     {
 
@@ -40,11 +80,34 @@ int line=1;
             if ((prog[i+1]>='a'&& prog[i+1]<='z') || (prog[i+1]>='A'&& prog[i+1]<='Z'))
             {
                 i++;
-                while((prog[i]>='a'&& prog[i]<='z') || (prog[i]>='A'&& prog[i]<='Z') || (prog[i]>='0'&& prog[i]<='9'))
+          
+                while(((prog[i]>='a'&& prog[i]<='z') || (prog[i]>='A'&& prog[i]<='Z') || (prog[i]>='0'&& prog[i]<='9')) && a < 31)
                 {
+                    temp[a]=prog[i];
+                    a++;
                     i++;
                 }
+                temp[a]='\0';
+
+                // logic to store the temp string in it's appropriate positoin
+                if (mainsbr[0] == '\0')
+                {
+                    strcpy(mainsbr,temp);
+                }
+                else if (flag == false)
+                {
+                     if (sbrdec_is_present(sbrs,temp,sd)== true)
+                    {
+                        return(false);
+                    }
+                    
+                }
+                else if (flag == true)
+                {
+                    sbrcal_is_present(scalled,temp,&sc);
+                }
                 
+
                 return(name);
             }
             else 
@@ -54,7 +117,53 @@ int line=1;
             }
             break;
 
+            case ':':
+            if((prog[i+1]>='a'&& prog[i+1]<='z') || (prog[i+1]>='A'&& prog[i+1]<='Z') )
+            {
+                i++;
+                while(((prog[i]>='a'&& prog[i]<='z') || (prog[i+1]>='A'&& prog[i]<='Z') || (prog[i]>='0'&& prog[i]<='9')) && a<31)
+                {
+                    temp[a]=prog[i];
+                    a++;
+                    i++;
+                }
+                temp[a]='\0';
 
+                //logic to store the string into the appropriate position
+                if (flag == false)
+                {
+                    if (lbldec_is_present(sbrs,temp)==true)
+                    {
+                        return(false);
+                    }
+                }
+                else if (flag == true)
+                {
+                    lblcal_is_present(sbrs,temp);                  
+                }
+                return(lable);
+            }
+            else 
+            {
+                return(error);
+            }
+            break;
+
+
+        case 'B':
+            if(prog[i+1]=='L'&& prog[i+2]==' ')
+            {   i+=3;
+                flag = true;
+                return(sbrbranch);
+            }
+            else if(prog[i+1]==' ')
+            {
+                i+=2;
+                flag = true;
+                return(lablebranch);
+            }
+            
+             
         case '(':
             i++;
             return(open);
@@ -148,33 +257,7 @@ int line=1;
             }
 
 
-        case ':':
-            if((prog[i+1]>='a'&& prog[i+1]<='z') || (prog[i+1]>='A'&& prog[i+1]<='Z') )
-            {
-                i++;
-                while((prog[i]>='a'&& prog[i]<='z') || (prog[i+1]>='A'&& prog[i]<='Z') || (prog[i]>='0'&& prog[i]<='9'))
-                {
-                    i++;
-                }
-                return(lable);
-            }
-            else 
-            {
-                return(error);
-            }
-            break;
-
-
-        case 'B':
-            if(prog[i+1]=='L'&& prog[i+2]==' ')
-            {   i+=3;
-                return(sbrbranch);
-            }
-            else if(prog[i+1]==' ')
-            {
-                i+=2;
-                return(lablebranch);
-            }
+        
 
         case 'W':
             if ((prog[i+1]>= '0' && prog[i+1]<='2') && (prog[i+2]>= '0' && prog[i+2]<='8') )
@@ -283,9 +366,9 @@ int line=1;
 
         
         case 'R':
-            if (prog[i+1]=='E' && prog[i+2]=='T' )
+            if (prog[i+1]=='E' && prog[i+2]=='T' && prog[i+3]=='U' && prog[i+4]=='R' && prog[i+5]=='N')
             {
-                i+=3;
+                i+=6;
                 return(RETURN);
             }
             else
@@ -320,23 +403,12 @@ int line=1;
 }
 
 
-bool validate_firstline();//returns ture if first line is correct 
-bool validate_program();//return true if program is correct
-bool validate_sbrfirstline(); // returns true if first line of sbr is correct 
-bool validate_sbr();// returns true if sbr is correct
-bool validate_instruction();//returns true if instruction is correct
-bool check_memoryinstruction();//checks insturctions which starts from memory
-bool check_R32instruction();//checks insturctions which starts from R32
-bool check_R64instruction();//checks insturctions which starts from R64
-
-
-
-
 bool validate_program()//return true if program is correct
 { 
   switch (wordtype())
   {
     case open:
+        
         return(validate_firstline());
         break;
     case nextline:
@@ -367,6 +439,8 @@ bool validate_sbr()// returns true if sbr is correct
 {
     if (wordtype()==open)
     {
+        sbrs[sd].lc = 0;//whenever the new sbr is declared the iterators of the array which stores lable_declarations and lable_calls will initialize from 0;
+        sbrs[sd].ld = 0;
         return(validate_sbrfirstline());
     }
     else
@@ -395,6 +469,11 @@ bool validate_instruction()//returns true if instruction is correct
     switch (wordtype())
     {
         case close:       //if ( comes  after checking instruction then call validatie_sbr  //else if ) comes after checking then return ture;  //else call validate_instruction
+            if (check_calledlbl(sbrs)==false)
+            {
+                return(false);
+            }
+            sd++; // if current sbr is closing the iterator of my structure which stores the info of array will increase as it stores info of one sbr at one index
             if(wordtype()==nextline)
             {
                 switch (wordtype())
@@ -407,6 +486,14 @@ bool validate_instruction()//returns true if instruction is correct
                 case close:
                     if ((wordtype()==nextline && wordtype()==null)||(wordtype()==null))
                     {
+                        if (check_mainsbr(sbrs,mainsbr,sd)==false)
+                        {
+                            return(false);
+                        }
+                        else if(check_calledsbr(sbrs,scalled)==false)
+                        {
+                            return(false);
+                        }
                         return(true);
                     }
                     else
@@ -416,6 +503,7 @@ bool validate_instruction()//returns true if instruction is correct
                     break;
                 
                 default:
+                    return(false);
                     break;
                 }
             }
@@ -674,17 +762,165 @@ bool check_R64instruction()//checks insturctions which starts from R64
     }
 }
 
+bool sbrdec_is_present ( struct sbr_data arr[] , char str[],int itr)//checks if sbr name is similar or not and adds sbr name in sturcture accordingly
+ {
+    for (int j=0; j<itr ; ++j)
+    {
+        if (strcmp(arr[j].sdeclared,str) == 0)
+        {
+            prtflg=1;
+            printf("declaration of two sbrs having same names:-\"%s\"\n ",str);
+            return(true);
+        }
+        
+    }
+    strcpy(sbrs[itr].sdeclared,str);
+    return(false);
+ }
+
+
+void sbrcal_is_present(char string[][31],char str[],int * itr)//checks if sbr name is similar or not and adds sbr name in sturcture accordingly
+ {
+    flag = false;//ensuring that the branch instruction is over
+    for (int j=0; j<*itr ; ++j)
+    {
+        if (strcmp(scalled[j],str) == 0)
+        {
+            return;
+        }
+        
+    }
+    strcpy(scalled[*itr],str);
+    (*itr)++;
+    //sc=itr;
+    return;
+ }
+
+
+bool lbldec_is_present (struct sbr_data arr[],char str[])//checks if lable name is similar or not and adds sbr name in sturcture accordingly
+{
+    for (int j=0;j<sbrs[sd].ld;++j)
+    {
+        if (strcmp(sbrs[sd].ldeclared[j],str)==0)
+        {
+            prtflg=1;
+            printf("within the scope of sbr \"%s\" there is the declaration of two lables having name :-\"%s\"\n",sbrs[sd].sdeclared,str);
+            return(true);
+        }
+    }
+
+    strcpy(sbrs[sd].ldeclared[sbrs[sd].ld],str);
+    sbrs[sd].ld++;
+    return(false);   
+}
+
+
+void lblcal_is_present (struct sbr_data arr[],char str[])//checks if lable name is similar or not and adds sbr name in sturcture accordingly
+{
+    flag= false; //ensuring that the branch insturction is over
+    for (int j=0;j<sbrs[sd].lc;++j)
+    {
+        if (strcmp(sbrs[sd].lcalled[j],str)==0)
+        {
+            return;
+        }
+    }
+
+    strcpy(sbrs[sd].lcalled[sbrs[sd].lc],str);
+    sbrs[sd].lc++;
+    return;
+
+    
+}
+
+
+bool check_calledlbl(struct sbr_data arr[])//checks wheather the called called lable is present within corresponding sbr or not
+{
+    
+    for (int j=0; j<sbrs[sd].lc ; j++)
+    {
+        int r=0;
+        for (int k=0; k<sbrs[sd].ld; k++)
+        {
+            if (strcmp(sbrs[sd].lcalled[j],sbrs[sd].ldeclared[k])==0)
+            {
+                r=1;
+            }
+        }
+        if (r==0)
+        {
+            prtflg=1;
+            printf("defination of called lable:- \"%s\" doesn't exist  in the sbr:- \"%s\"\n",sbrs[sd].lcalled[j],sbrs[sd].sdeclared);
+            return(false);
+        }
+    }
+    return(true);
+
+}
+
+
+bool check_calledsbr(struct sbr_data arr[],char calsbr[][31])//checks wheather the called sbr is present in the program or not 
+{
+    for (int j=0; j<sc ; j++)
+    {
+        int r=0;
+        for (int k=0; k<sd; k++)
+        {
+            if (strcmp(calsbr[j],sbrs[k].sdeclared)==0)
+            {
+                r=1;
+            }
+        }
+        if (r==0)
+        {
+            prtflg=1;
+            printf("defination of called sbr:- \"%s\" doesn't exist in the program",calsbr[j]);
+            return(false);
+        }
+    }
+    return(true);
+
+
+
+}
+
+
+bool check_mainsbr ( struct sbr_data arr[] , char str[],int itr)//checks if main_sbr name is present in the declared function
+ {
+    for (int j=0; j<itr ; ++j)
+    {
+        if (strcmp(arr[j].sdeclared,str) == 0)
+        {
+            return(true);
+        }
+        
+    }
+    prtflg=1;
+    printf("defination of main_sbr :-\"%s\" is missing in the program ",mainsbr);
+    return(false);
+ }
 
 void main ()
 {   
     
-    bool d=validate_program();
-    if (d==true)
+  //  bool d=validate_program();
+    if (validate_program()==true)
     {
-        printf("program is valid\n");
+        printf("programe is verified successfully !! \nAll the lables and sbrs are  defined correctly");
     }
-    else
+    else if (validate_program()==false && prtflg==1 )
     {
         printf("error at line no.:- %d\n",line);
     }
-}
+    else if (validate_program()==false && prtflg==0 )
+    {
+        printf(" syntax error at line no.:- %d\n",line);
+    }
+
+
+    // printf (" \n main :-%s\n",mainsbr);
+    // printf(" sbrdeclared :-%s\n",sbrs[2].sdeclared);
+    // printf(" sbrcalled :-%s\n",scalled[0]);
+    // printf(" labledeclared :-%s\n",sbrs[sd-1].ldeclared[0]);
+    // printf(" lablecalled :-%s\n",sbrs[0].lcalled[0]);
+ }
